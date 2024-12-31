@@ -1,0 +1,141 @@
+IDMC Errors and Solutions :
+1. DTM Process Error
+a) Missing initial values for parameters – need to provide initial values and parameter file should be picked properly.
+b) Flow run order – If there is a mismatch in flow run order in PC and IDMC, We need to change the flow according to the PC.
+c) Schema mentioned in advanced properties for DB’s if already there in connection(if schema in connection and advanced properties is same) – Remove the schema name
+d) User Defined functions – If udf’s are not defined properly in mapping and udf is not properly created. Try reselecting the udf or create it properly.
+e) At Task flow level make sure that parameter fields(directory and file) are added in input fields of data task
+f) When the target field is integer and some string value is passing to it then it was failing with DTM error
+2. 4053 error - data cant be fetched from the database. -- This error occurs when the column definitions for the target table in the database did not match with the fields defined in the Source Qualifier.
+	For example, this error can occur when the session reads from a different database instance                       contains the same table name, but different column definitions.
+3. Dynamic lookup error – For dynamic lookups , rowver is the default column and we cant remove it. For dynamic lookups, field mapping is also important and all the required should mapped according to the logic. If few fields cant be mapped we can edit the metadata and remove those fields.
+4. Idmc is not able to read data/time fields from the flatfile – gives an Row skipped error.(Because in IDMC connections default datetime format is mentioned as:DD/MM/YYYY HH24:MM:SS .So, It was unable to accept the ‘-‘ date format)
+· Edit the metadata in the source and change the datatype to string.
+· In the next expression create a output field with datatime as datatype and TO_DATE() function to convert string value to datetime.
+· Exclude original fields (String datatype fields ) from the next transformations
+5. Partitions in all sources should be same and give the values – Need to have same no of partitions across all the sources in a mapping and all the partitions should contain the values.
+6. Mapping is not converted properly through rpa so need to do ctrl+x and ctrl+c workaround.  The solution which we followed :
+· Ctrl+A, Ctrl+X, Ctrl+V – To remove multiple entries of a single pipeline in flow run  order.
+· Synchronize the mapplets, Targets.
+· Verify every stored Procedures and Lookups.
+7. Field Name Conflicts 
+· Check if any field is repeating twice and remove it.
+· Check the return fields for the lookups.
+8. Idmc doesnt allow special characters :
+· &, / -- These symbols are not allowed in IDMC.
+· Change the field name and do the field mapping according to it.
+9. Invalid string for converting to Date— The input string and the date format should match in the to_date() function.
+	For Example:
+	TO_DATE(02-02-2022,’DDMMYYYY’)----Will through the error
+	TO_DATE(02022022,’DDMMYYYY’)----Correct format
+10. Row skip error: If the data length is more than the precision specified in metadata this error will occur. Increase the precision accordingly.
+11. cannot convert the data from type3 to type 72:when The datatype in the database table and IDMC are different they we face this error.
+12. Primary Key error: Data issue need to remove the rows which are going to be inserted in the database.
+13. Parameter file issues: If a Parameter is unable to fetch the value from the parameter file there could be 2 reasons i)Parameter file is not generated or the parameter is missing in the parameter file or ii)The parameter name is case sensitive check the characters of the parameter name properly. For example, Parametr file ->$$Parameter_name
+	In the workflow ->$$parameter_name
+	The value will not be fetched as both the names are different.
+	And parameter file should be picked properly by the workflow(It should be visible in the jobpayload of monitor.) .And the folder name in IDMC and deploy script(Session-name) should match.
+14. Cli.Bat error:  If the API name given in Task flow is not same as the workflow name as mention in DIS then it will throw cli.bat error in DIS.
+	Similarly if any other parameter names are different from the one which are mentioned in DIS then also it will fail with cli.bat error.
+	If we donot publish then also we will face this error.
+	 
+	NOTE:
+	1.If Lookup connection is reselected the metadata will be disturbed and we need to select again the connection.
+	2.The ports in the lookup condition should be included in the transformation and the both ports should have same data type.
+	3.The return port should be selected in unconnected lookup.
+	4.The flat file path and extensions should be same as the input file otherwise it will fail with the error “Unable to fetch the file”.
+	5.The Fixed-Width files cannot be created at run time as it checks for the structure of the file initially. For Fixed-width files we need to select an existing file.
+	 
+	LPL Project Flow :
+	 
+	Powercenter workflows à RPA conversion à IDMC import à Conversion à Review à Project folder movement à Run through DIS à Move to higher environments.
+	 
+	RPA Conversion :
+	 
+	It is a tool which is used to export the workflows from powercenter to IDMC. It can export multiple workflows at a time.
+	While exporting through RPA, 
+· All objects like workflow, session , mapping are exported.
+· connections are given to sources, targets and lookups.
+· Source  and lookup queries are given.
+· It can export dependency objects like mapplets, stored procedures.
+· Only few session properties are given.
+                Few advanced properties for source, target n lookup properties doesn’t come through RPA.
+               Conversion :  Steps followed in LPL project.
+· Check the connections for source , target and lookups
+· Check the source query overrides
+· Check the mapplets, stored procedures, validate them and point them to the proper folder.
+· Check the target properties like target operation - insert/update/delete, bulk load, truncate target, update columns in target operation is update/delete.
+· Check the session properties like session logfile name, dtm buffer size, stop on errors, override tracing, enable high precision, datetime format string, pre85 timestamp compatibility, any other properties as PC and add the properties according to PC.
+· Check the workflow properties like api name, allowed groups
+· In data task check the session pointing to right folder and error handling properties.
+· Check flow run order in the mapping and make it same as PC.
+· Check the input and inout parameters.
+· Check for ser defined functions and use correct one. If correct one is not available, create the UDF based on PC.
+             
+	 Review :
+              Leads or other teammates review our workflows. They mainly review :
+· Connections for source, target and lookups
+· Target properties.
+· Mapplets, stored procedures, UDF’s.
+· Session properties 
+· Workflow API name, allowed groups, error handling.
+	Project Folder Movement : 
+	After Review, workflows are moved to project folder according to the Repo and folder.
+	Run Through DIS :
+· DIS – Data Integration Scheduler which is used to schedule the IDMC/ Powercenter Jobs. This is similar to Autosys Scheduler App. 
+· Each Job has different Process name. DIS is operated through process names.
+· The process name for each job is created by the client and given to us.
+· There are two scripts – Deploy and Rollback scripts which are used to trigger the jobs through DIS. These are SQL queries combined to form a script.
+· Deploy script – This point the job to IDMC, that means job is executed in IDMC. We set process name, Repo name according to the project requirement in this script. 
+		
+· Rollback Script – This points the job to Powercenter, that means job is executed in Powercenter. We set process name , session name and Integration service name in this script.
+		
+· These scripts are executed in SQL server management studio.
+	Move to Higher Environments :
+	After ensuring the jobs ran successfully through DIS, They will be moved to QA and PROD regions.
+	Deployment Process :
+1) Move the workflow and it’s dependencies to the project folder.
+2) Change the API name same as workflow name and publish the workflow.
+3) Run the deploy script in sql with schema LPL_DIS_CONTROLLER.
+4) Search for the job in DIS and run the job.
+5) Check the result in IDMC Monitor.
+	Rollback Process:
+1) Run the Rollback script in sql with schema LPL_DIS_CONTROLLER.
+2) Search for the job in DIS and run the job.
+3) Check the result in PC Monitor.
+	 
+	DIS(Data Integration Schedular):
+1) DIS is used the run or schedule the job both in Powercenter and IDMC.
+2) To point the DIS from PC to IDMC we run the deploy script.
+3) To point the DIS from IDMC to PC we run the rollback script.
+4) To run a process through DIS in LPL we go to job control and search with the process name and right click on the result->job properties (in job properties all the values should be 0 except date fields and job state name should be changed to insert(for workflows) and run_sp(for stored procedure) to run the job)
+5) If the job got succeded it will be moved to complete state or rename(based on the conditions)
+	Errors in DIS:
+1) If we do not run the rollback or deploy script properly the job will fail at dis level.          For example: If we mention ‘Salesforce’ instead of ‘Strategic-Data-Initiative’ in deploy script. The Process will fail as it belongs to SDI 
+2) If we donot publish the workflow then the process will fail at DIS level(Up to my undestanding if we donot publish the workflow the code will not be saved in git when we invoke the process from DIS it will search in GIT and if it was not found then it will fail)
+3) API name in the project folder workflow should be same as the workflow name and API name will be unique. If we give incorrect API name The process may run an incorrect workflow.
+4) If ther is any dependency process(like asofdate process) and they are in any state other than Completed or required state the main process will fail.For this u need to make the dependency process to the required state.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Command Prompt:
+The nslookup command in Linux is used to query DNS servers and get information about domain names and their corresponding IP addresses. The syntax used for the command is as follows, nslookup [options]
+Nslookup(enter)
+Give a server address it will give the other  address of the same server.
+ 
+Parameters:
+1) When we run a process through DIS the values of parameters will be fetched from Parameter file generated.
+2) If we mention a default value for parameter in mapping level or session level it will be overridded with parameter files parameter value when we run through DIS.
+3) If a parameter value is not present in Parameter file and if we donot give the default value for that parameter then the process will fail with DTM error.
+4)  In parameter file the basic values that are generated are asofdate, process name ,param file.
+ 
+ 
+
+From <https://capgemini-my.sharepoint.com/personal/sanjana_meka_capgemini_com/Documents/Microsoft%20Teams%20Chat%20Files/IDMC%20Errors%20and%20Solutions%201.docx> 
+
